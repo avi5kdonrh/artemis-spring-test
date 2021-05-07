@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    application: broker
+    template: amq-broker-77-persistence
+  name: broker-amq
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: broker-amq
+  serviceName: broker-amq-headless
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: broker-amq
+        application: broker
+        deploymentConfig: broker-amq
+      name: broker-amq
+    spec:
+      containers:
+      - env:
+        - name: AMQ_USER
+          value: admin
+        - name: AMQ_PASSWORD
+          value: admin
+        - name: AMQ_NAME
+          value: broker
+        - name: AMQ_TRANSPORTS
+          value: openwire,amqp,stomp,mqtt,hornetq
+        - name: AMQ_QUEUES
+        - name: AMQ_ADDRESSES
+        - name: AMQ_GLOBAL_MAX_SIZE
+          value: 100 gb
+        - name: AMQ_REQUIRE_LOGIN
+        - name: AMQ_DATA_DIR
+          value: /opt/amq/data
+        - name: AMQ_DATA_DIR_LOGGING
+          value: "true"
+        - name: AMQ_EXTRA_ARGS
+        - name: AMQ_ANYCAST_PREFIX
+        - name: AMQ_MULTICAST_PREFIX
+        - name: AMQ_ENABLE_METRICS_PLUGIN
+          value: "true"
+        - name: AMQ_JOURNAL_TYPE
+          value: nio
+        image: registry.redhat.io/amq7/amq-broker:7.7-13
+        imagePullPolicy: IfNotPresent
+        name: broker-amq
+        ports:
+        - containerPort: 8161
+          name: console-jolokia
+          protocol: TCP
+        - containerPort: 5672
+          name: amqp
+          protocol: TCP
+        - containerPort: 1883
+          name: mqtt
+          protocol: TCP
+        - containerPort: 61613
+          name: stomp
+          protocol: TCP
+        - containerPort: 61616
+          name: all
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - /opt/amq/bin/readinessProbe.sh
+          failureThreshold: 3
+          periodSeconds: 10
+          successThreshold: 50
+          timeoutSeconds: 1
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /opt/amq/data
+          name: broker-amq-pvol
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 60
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+  volumeClaimTemplates:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      creationTimestamp: null
+      name: broker-amq-pvol
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+      volumeMode: Filesystem
